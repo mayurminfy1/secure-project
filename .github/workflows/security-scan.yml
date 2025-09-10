@@ -1,0 +1,54 @@
+# A descriptive name for your workflow
+name: 🛡️ Security Scan - Git Secrets
+
+#
+# This section defines when the workflow will run.
+# It triggers on any push or pull request to the main or master branches.
+#
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+#
+# This section defines the job(s) to be run.
+#
+jobs:
+  scan:
+    name: Scan for hardcoded secrets
+    # The job will run on a fresh virtual machine hosted by GitHub
+    runs-on: ubuntu-latest
+
+    #
+    # These are the individual steps that make up the job.
+    # They run in sequence.
+    #
+    steps:
+      # Step 1: Checks out your repository's code onto the runner
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history to enable a full scan of all commits
+          fetch-depth: 0
+
+      # Step 2: Installs the git-secrets tool
+      - name: Install git-secrets
+        run: |
+          git clone https://github.com/awslabs/git-secrets.git
+          cd git-secrets
+          sudo make install
+          cd ..
+          rm -rf git-secrets
+
+      # Step 3: Configures and runs the scan
+      - name: Scan Repository
+        run: |
+          # Set up git-secrets for the repository
+          git secrets --install
+          # Add the default rules for AWS keys and other common patterns
+          git secrets --register-aws
+          # Scan all files. If a secret is found, this command will fail,
+          # which causes the entire workflow to fail.
+          echo "Scanning for secrets..."
+          git secrets --scan --recursive .
